@@ -1,0 +1,50 @@
+ 🤖 Pokétwo OCR Self-Bot Setup Guide
+This guide will walk you through the installation and configuration of your Pokétwo OCR Self-Bot.
+NOTE: This Self-bot requires Pokéname Or P2 Assistant bot to be in the server.
+ 📋 Prerequisites
+Before beginning, ensure you have:
+  Python 3.10+: Download from python.org.
+    Windows Users: Crucial! Check the box "Add Python to PATH" during installation.
+  Write Permissions: Ensure your user account has permission to create/modify files in your chosen directory.
+ 🚀 Phase 1: Installation
+Place requirements.txt, main.py, install.bat, and install.sh in the same folder.
+ For Windows
+ 1. Double-click install.bat.
+ 2. The script will automatically install the required dependencies: discord.py-self, Pillow, pytesseract, and aiohttp.
+ 3. A run.bat file will be created. Use this to start your bot in the future.
+ For Linux, macOS, or Termux
+ 1. Open your terminal and navigate to the bot folder:
+   bash
+   cd /path/to/your/bot
+   
+   
+ 2. Make the script executable and run it:
+   bash
+   chmod +x install.sh
+   ./install.sh
+   
+   
+ 3. Use the generated run.sh file to start the bot.
+ 🔍 Phase 2: The OCR Engine (Mandatory)
+The Python libraries allow your bot to process data, but it needs the Tesseract OCR engine installed on your system to "read" images.
+
+| OS | Installation Command / Source |
+| :--- | :--- |
+| Windows | Download UB-Mannheim Installer |
+| macOS | brew install tesseract |
+| Ubuntu/Debian | sudo apt update && sudo apt install tesseract-ocr |
+| Termux | pkg install tesseract | <br> > Note for Windows Users: If your Tesseract path is not the default (C:\Program Files\Tesseract-OCR\tesseract.exe), uncomment the pytesseract.pytesseract.tesseract_cmd line in main.py and set it to your specific file path. <br> > <br>  ✅ Phase 3: Verification <br> Run your run.bat or ./run.sh and monitor the terminal: <br>  Success: You will see: <br> [] Loaded [number] Pokémon names into memory. <br> [] Logged in as [YourBotName]! <br>  Troubleshooting
+| Error | Likely Cause |
+| :--- | :--- |
+| TesseractNotFound | You installed the Python library, but not the Tesseract software engine. |
+| ModuleNotFoundError | A library failed to install. Run the install script with Admin/Sudo privileges. |
+| Authentication Failed | Your bot token in client.run("...") is invalid or expired. |
+
+ 🛡️ Guild Exclusion
+To disable the bot in specific servers, modify the self.excluded_guilds set in your main.py:
+python
+ Add your server IDs here
+self.excluded_guilds = {123456789012345678, 987654321098765432}
+
+Need more help? Double-check your token and ensure your Python environment is clean and updated!
+Still not enough? Contact @kaiso5693 on discord!"
