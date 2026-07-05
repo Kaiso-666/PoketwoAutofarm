@@ -1,3 +1,4 @@
 V1 - simple OCR no pokename text version support
 V2 - Advanced OCR, Pokename Text Version Support, Advanced Fuzzy Cross Check, Permission Checks, Network Management, Faster Algorithms
 V3 - Further Improved OCR, added Auto verification stop feature, more info and better colouring of output in terminals.
+V4 - Most work is now done through my api now + more improvements just check them out on ur own
