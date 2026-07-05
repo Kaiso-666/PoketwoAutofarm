@@ -2,7 +2,7 @@
 set -e
 
 echo "====================================================="
-echo "   Discord Self-Bot Installer with Auto-Recovery    "
+echo "   Discord Self-Bot Installer (Termux Supported)     "
 echo "====================================================="
 
 # 1. Gather Filename
@@ -28,15 +28,23 @@ while true; do
     fi
 done
 
-# 3. System Environment Provisioning
+# 3. Smart Environment Provisioning (Termux vs Linux)
 echo -e "\n[*] Installing environment dependencies..."
-sudo apt update
-sudo apt install -y python3 python3-pip curl
+
+if [ -n "$TERMUX_VERSION" ] || echo "$PREFIX" | grep -q "com.termux"; then
+    echo "[!] Termux environment detected. Installing without sudo..."
+    pkg update -y
+    pkg install -y python curl
+else
+    echo "[!] Standard Linux detected. Installing with sudo apt..."
+    sudo apt update
+    sudo apt install -y python3 python3-pip curl
+fi
 
 echo -e "\n[*] Installing required Python packages..."
 pip3 install aiohttp discord.py-self --break-system-packages || pip3 install aiohttp discord.py --break-system-packages || true
 
-# 4. Write Self-Bot Script (Equipped with failure-flag handling)
+# 4. Write Self-Bot Script 
 echo -e "\n[*] Creating automation file: $FILENAME"
 cat << 'EOF' > "$FILENAME"
 import discord
@@ -192,7 +200,6 @@ try:
         raise discord.LoginFailure("Token payload found empty.")
     client.run(TOKEN)
 except Exception as e:
-    # Handle token failures gracefully by alerting the shell controller
     if "LoginFailure" in type(e).__name__ or "Improper token" in str(e):
         with open(INVALID_FLAG, "w") as flag_file:
             flag_file.write("invalid")
