@@ -5,9 +5,23 @@ import aiohttp
 import pytesseract
 import asyncio
 import difflib
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageDraw
 
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+# using tesseract is a pain in the ahh
+
+# --- ANSI Terminal Colors Configuration ---
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
 
 class OcrSelfBot(discord.Client):
     def __init__(self, *args, **kwargs):
@@ -16,20 +30,23 @@ class OcrSelfBot(discord.Client):
         self.pokemon_dict = {}             
         self.pokemon_normalized_names = [] 
         
-        # Target user IDs
+        # Track if the bot just sent a catch command
+        self.sent_catch_attempt = False
+        
+        # Target user IDs (supporter bots Pokéname & some other)
         self.target_user_1 = 874910942490677270
         self.target_user_2 = 854233015475109888
         self.poketwo_id = 716390085896962058
         
-        # ADDED: Guild ID exclusion list
-        self.excluded_guilds = {1520755884693913703, 676767676767676767} 
+        # Guild ID exclusion list
+        self.excluded_guilds = {1520755884693913703, 676767676767676767} # guilds/servers where u wanna don't grind
         
         # Pre-compile regex patterns
         self.alnum_regex = re.compile(r"[^a-zA-Z0-9\-\']")
         self.normalization_regex = re.compile(r"[^a-z0-9]")
         self.new_user_pattern = re.compile(r"^([^:]+):\s*\d+%\s*$")
         
-        # NEW: Pattern to extract Level, Name, Gender, and IVs from the success string
+        # Pattern to extract Level, Name, Gender, and IVs from the success string
         self.success_pattern = re.compile(r"You caught a Level (\d+) (.+?)(<:female:\d+>|<:male:\d+>)? \(([\d.]+)%\)!")
         
         self.load_pokemon_database()
@@ -47,9 +64,9 @@ class OcrSelfBot(discord.Client):
                         self.pokemon_dict[normalized] = name
             
             self.pokemon_normalized_names = list(self.pokemon_dict.keys())
-            print(f"[*] Loaded {len(self.pokemon_dict)} Pokémon names into memory.")
+            print(f"{Colors.MAGENTA}[*]{Colors.RESET} Loaded {Colors.BOLD}{len(self.pokemon_dict)}{Colors.RESET} Pokémon names into memory.")
         except FileNotFoundError:
-            print("[!] Warning: pokenames.txt not found. Matching will not work.")
+            print(f"{Colors.RED}{Colors.BOLD}[!] Warning: pokenames.txt not found. Matching will not work.{Colors.RESET}")
 
     def get_best_match(self, extracted_text):
         if not extracted_text or not self.pokemon_dict:
@@ -75,20 +92,28 @@ class OcrSelfBot(discord.Client):
         try:
             image = Image.open(io.BytesIO(image_data))
             
+            # Handle Transparency
             if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
                 bg = Image.new('RGB', image.size, (255, 255, 255))
                 bg.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
                 image = bg
             
+            # Mask out specific UI elements (e.g., timestamps/buttons on the right)
+            draw = ImageDraw.Draw(image)
+            draw.rectangle([image.width - 80, 0, image.width, 75], fill=(255, 255, 255))
+            
+            # Upscale for better Tesseract reading
             if image.width < 600:
-                image = image.resize((image.width * 2, image.height * 2), Image.Resampling.BICUBIC)
+                image = image.resize((image.width * 2, image.height * 2), Image.Resampling.LANCZOS)
                 
+            # Convert to grayscale and apply natural contrast
             image = image.convert('L') 
-            
             enhancer = ImageEnhance.Contrast(image)
-            image = enhancer.enhance(2.5)
+            image = enhancer.enhance(2.0) 
             
-            custom_config = r"--psm 11 -c tessedit_char_whitelist=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            # Tesseract config: PSM 11 to scan for sparse text anywhere in the image
+            custom_config = r"--psm 11"
+            
             raw_ocr_text = pytesseract.image_to_string(image, config=custom_config)
             words = raw_ocr_text.split()
             
@@ -102,47 +127,66 @@ class OcrSelfBot(discord.Client):
                     cleaned_parts.append(clean)
                     
             return " ".join(cleaned_parts[:3]) if cleaned_parts else None
+            
         except Exception as e:
-            print(f"[!] Error processing image bytes inside background thread: {e}")
+            print(f"{Colors.RED}[!] Error processing image bytes inside background thread: {e}{Colors.RESET}")
             return None
 
     async def on_ready(self):
         if self.session is None or self.session.closed:
             self.session = aiohttp.ClientSession()
-        print(f'[*] Logged in as {self.user}! Listening for messages...')
+        print(f'{Colors.GREEN}[*]{Colors.RESET} Logged in as {Colors.BOLD}{Colors.CYAN}{self.user}{Colors.RESET}! Listening for messages... ☑')
 
     async def on_message(self, message):
-        # 1. Check for Guild Exclusion
         if message.guild and message.guild.id in self.excluded_guilds:
             return
             
         content = message.content.strip() if message.content else ""
         
-        # --- Pokétwo Success / Fail Tracker ---
+        # --- Pokétwo Success / Fail / Captcha Tracker ---
         if message.author.id == self.poketwo_id:
-            if "That is the wrong pokémon!" in content:
-                print("[-] Catch Failed: Incorrect Pokémon name guessed.")
-            elif f"Congratulations <@{self.user.id}>!" in content:
-                # NEW: Format regex mapping block
-                match = self.success_pattern.search(content)
-                if match:
-                    lvl = match.group(1)
-                    name = match.group(2).strip()
-                    gender_raw = match.group(3)
-                    iv = match.group(4)
-                    
-                    # Convert the Discord emoji strings to standard terminal icons
-                    gender = ""
-                    if gender_raw:
-                        if "male" in gender_raw:
-                            gender = " ♂️"
-                        elif "female" in gender_raw:
-                            gender = " ♀️"
-                            
-                    print(f"[$$$] Caught a [{lvl}] {name} ({iv}% IV){gender} !")
-                else:
-                    # Fallback just in case Pokétwo changes their message format slightly
-                    print(f"[$$$] SUCCESS: {content}")
+            
+            # 1. Anti-Bot Verification Detection
+            if f"Whoa there. Please tell us you're human! https://verify.poketwo.net/captcha/{self.user.id}" in content:
+                link = f"https://verify.poketwo.net/captcha/{self.user.id}"
+                blue_link = f"\033[34m\033]8;;{link}\033\\{link}\033]8;;\033\\{Colors.YELLOW}"
+                
+                print(f"\n{Colors.YELLOW}⚠ Pokétwo is requesting human verification, visit {blue_link} to verify your account then restart this bot. {Colors.RESET}")
+                print(f"{Colors.RED}{Colors.BOLD}[-] Shutting down bot processes... 𐄂{Colors.RESET}")
+                
+                if self.session and not self.session.closed:
+                    await self.session.close()
+                await self.close()
+                return
+
+            # 2. Standard Logic
+            elif "That is the wrong pokémon!" in content:
+                if self.sent_catch_attempt:
+                    print(f"{Colors.RED}[-] Catch Failed: Incorrect Pokémon name guessed.{Colors.RESET}")
+                self.sent_catch_attempt = False 
+                
+            elif "Congratulations" in content:
+                if f"Congratulations <@{self.user.id}>!" in content:
+                    match = self.success_pattern.search(content)
+                    if match:
+                        lvl = match.group(1)
+                        name = match.group(2).strip()
+                        gender_raw = match.group(3)
+                        iv = match.group(4)
+                        
+                        gender = ""
+                        if gender_raw:
+                            if "male" in gender_raw:
+                                gender = f"{Colors.BLUE}♂{Colors.RESET}"
+                            elif "female" in gender_raw:
+                                gender = f"{Colors.MAGENTA}♀{Colors.RESET}"
+                            elif "other" in gender_raw:
+                                gender = "?"
+                                
+                        print(f"{Colors.GREEN}{Colors.BOLD}[$$$] Caught a [{lvl}] {name} ({iv}% IV) {gender}! ☑{Colors.RESET}")
+                    else:
+                        print(f"{Colors.GREEN}{Colors.BOLD}[$$$] SUCCESS: {content} ☑{Colors.RESET}")
+                self.sent_catch_attempt = False 
             return
             
         if message.author.id not in (self.target_user_1, self.target_user_2):
@@ -184,7 +228,8 @@ class OcrSelfBot(discord.Client):
             if best_match:
                 response_msg = f"<@716390085896962058> c {best_match}"
                 await message.channel.send(response_msg)
-                print(f"[+] Sent (Text Match): {response_msg}")
+                print(f"{Colors.CYAN}[+] Sent (Text Match): {Colors.RESET}{Colors.BOLD}{response_msg}{Colors.RESET}")
+                self.sent_catch_attempt = True 
             return 
         
         if message.author.id == self.target_user_1:
@@ -213,11 +258,12 @@ class OcrSelfBot(discord.Client):
                                 if best_match:
                                     response_msg = f"<@716390085896962058> c {best_match}"
                                     await message.channel.send(response_msg)
-                                    print(f"[+] Sent (OCR Match): {response_msg}")
+                                    print(f"{Colors.CYAN}[+] Sent (OCR Match): {Colors.RESET}{Colors.BOLD}{response_msg}{Colors.RESET}")
+                                    self.sent_catch_attempt = True
                             else:
-                                print("[-] No valid words found in OCR.")
+                                print(f"{Colors.YELLOW}[-] No valid words found in OCR.{Colors.RESET}")
                 except Exception as e:
-                    print(f"[!] Error tracking processing image sequence: {e}")
+                    print(f"{Colors.RED}[!] Error tracking processing image sequence: {e}{Colors.RESET}")
 
 client = OcrSelfBot()
-client.run("TOKEN_HERE")
+client.run("hidden")
