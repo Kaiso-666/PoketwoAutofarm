@@ -1,4 +1,3 @@
-Here is the streamlined and updated setup guide. Since the heavy lifting (OCR processing and text sanitization) has been offloaded to the API backend, your users no longer need to struggle with installing Tesseract or managing complex image libraries locally.
 # 🤖 Pokétwo OCR Self-Bot Setup Guide
 This guide will walk you through the installation and configuration of your streamlined Pokétwo OCR Self-Bot.
 > **NOTE:** This Self-bot requires a helper bot (like Pokéname or P2 Assistant) to be present in the server to trigger the text/image cues.
@@ -62,4 +61,3 @@ self.excluded_guilds = {123456789012345678, 987654321098765432}
 
 ```
 > 💡 **Need more help?** Double-check your account token and ensure your network isn't blocking the API endpoint. Still stuck? Contact @kaiso5693 on Discord!
-> 
