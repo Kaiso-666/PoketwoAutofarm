@@ -2,7 +2,7 @@
 set -e
 
 echo "====================================================="
-echo "   Discord Self-Bot Installer (Termux Supported)     "
+echo "   Discord Self-Bot Installer (Auto-Start Enabled)   "
 echo "====================================================="
 
 # 1. Gather Filename
@@ -237,6 +237,15 @@ if ! pgrep -f "python3 $CURRENT_DIR/$FILENAME" > /dev/null; then
 fi
 # ------------------------------------------------------
 EOF
+
+# 6. Immediate Execution Trigger
+echo -e "\n[*] Spinning up the bot instance immediately..."
+if ! pgrep -f "python3 $CURRENT_DIR/$FILENAME" > /dev/null; then
+    python3 "$CURRENT_DIR/$FILENAME" > /dev/null 2>&1 &
+    echo -e "\033[32m[+] Bot successfully initialized and active in the background! ☑\033[0m"
+else
+    echo -e "\033[33m[!] Bot instance is already running.\033[0m"
+fi
 
 echo -e "\n\033[32m[✔] Provisioning Pipeline Complete!\033[0m"
 echo "[*] Application Script: $CURRENT_DIR/$FILENAME"
