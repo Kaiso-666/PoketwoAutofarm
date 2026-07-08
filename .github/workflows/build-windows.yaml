@@ -1,0 +1,47 @@
+name: Build Windows Binary
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows you to trigger it manually from the UI
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up vcpkg
+      run: |
+        git clone https://github.com/microsoft/vcpkg.git
+        cd vcpkg
+        .\bootstrap-vcpkg.bat
+        echo "VCPKG_ROOT=$(pwd)" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Install Dependencies via vcpkg
+      run: |
+        $env:VCPKG_ROOT\vcpkg.exe install opencv4[core]:x64-windows-static tesseract:x64-windows-static
+      shell: pwsh
+
+    - name: Compile Ocr Worker (Static)
+      run: |
+        # Setup MSVC Developer Command Prompt path dynamically
+        & "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        
+        # Compile with static runtime (/MT) and static library paths
+        cl.exe /EHsc /O2 /MT `
+          /I "$env:VCPKG_ROOT\installed\x64-windows-static\include" `
+          ocr_worker.cpp `
+          /link /LIBPATH:"$env:VCPKG_ROOT\installed\x64-windows-static\lib" `
+          *.lib `
+          /OUT:ocr_worker.exe
+      shell: pwsh
+
+    - name: Upload Compiled Binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: ocr_worker_windows
+        path: ocr_worker.exe
