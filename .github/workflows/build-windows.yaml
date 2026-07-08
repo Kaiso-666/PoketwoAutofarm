@@ -19,8 +19,8 @@ jobs:
     - name: Install Dependencies via vcpkg
       shell: pwsh
       run: |
-        # Use quotes and call operator to prevent PowerShell parser token errors
-        & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install "opencv4[core]:x64-windows-static" "tesseract:x64-windows-static"
+        # Ensure all required static libraries are fetched
+        & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install "opencv4[core]:x64-windows-static" "tesseract:x64-windows-static" "nlohmann-json:x64-windows-static"
 
     - name: Compile Ocr Worker (Static)
       shell: pwsh
@@ -31,10 +31,15 @@ jobs:
         # Dynamically fetch every generated static library file name to prevent linker reference drops
         $StaticLibs = Get-ChildItem -Path $LibFolder -Filter *.lib | Select-Object -ExpandProperty Name
         
-        # Compile with static runtime configuration (/MT)
-        # Added /I"$IncludeFolder\opencv4" to resolve opencv2/opencv.hpp header location
-        # Appended critical Windows system .libs at the end to satisfy static link dependencies
-        & cl.exe /EHsc /O2 /MT /I"$IncludeFolder" /I"$IncludeFolder\opencv4" ocr_worker.cpp /link /LIBPATH:"$LibFolder" $StaticLibs Windowscodecs.lib Ole32.lib Gdi32.lib Comctl32.lib User32.lib Advapi32.lib Ws2_32.lib /OUT:ocr_worker.exe
+        # Compilation Breakdown:
+        # 1. Added /D "TESS_STATIC" and /D "LEPTONICA_STATIC" to ensure header compatibility with static linking
+        # 2. Included both base and OpenCV nested directory structures
+        # 3. Linked all accumulated vcpkg dependencies alongside Windows system platform targets
+        & cl.exe /EHsc /O2 /MT `
+          /D "TESS_STATIC" /D "LEPTONICA_STATIC" `
+          /I"$IncludeFolder" /I"$IncludeFolder\opencv4" `
+          ocr_worker.cpp `
+          /link /LIBPATH:"$LibFolder" $StaticLibs Windowscodecs.lib Ole32.lib Gdi32.lib Comctl32.lib User32.lib Advapi32.lib Ws2_32.lib /OUT:ocr_worker.exe
 
     - name: Upload Compiled Binary
       uses: actions/upload-artifact@v4
