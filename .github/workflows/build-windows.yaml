@@ -33,9 +33,9 @@ jobs:
         
         # Compile with static runtime (/MT) and static library paths
         cl.exe /EHsc /O2 /MT `
-          /I "$env:VCPKG_ROOT\installed\x64-windows-static\include" `
+          /I "$($env:VCPKG_ROOT)\installed\x64-windows-static\include" `
           ocr_worker.cpp `
-          /link /LIBPATH:"$env:VCPKG_ROOT\installed\x64-windows-static\lib" `
+          /link /LIBPATH:"$($env:VCPKG_ROOT)\installed\x64-windows-static\lib" `
           *.lib `
           /OUT:ocr_worker.exe
       shell: pwsh
