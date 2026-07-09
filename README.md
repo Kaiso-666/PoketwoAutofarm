@@ -1,1 +1,9 @@
-you know what this is for, just go to releases and download the latest zip file and unzip it for the entire sh*t, it made to work on almost any platform (android—via termux, windows, macos, linux and basically any os which supports python and c++)
+# Quick Start Guide
+You know what this is for. Just go to **Releases**, download the latest .zip file, and unzip it to get the entire package.
+## 🚀 Platform Support
+This project is built to work on almost any platform that supports **Python** and **C++**, including:
+ * **Android** (via Termux)
+ * **Windows**
+ * **macOS**
+ * **Linux**
+ * ...and basically any other compatible OS.
