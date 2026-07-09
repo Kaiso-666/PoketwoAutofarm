@@ -1,3 +1,6 @@
+## First of all
+Star this repo pls, it'll motivate me to update this time to time
+
 # Quick Start Guide
 You know what this is for. Just go to **Releases**, download the latest .zip file, and unzip it to get the entire package.
 ## 🚀 Platform Support
